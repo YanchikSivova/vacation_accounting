@@ -1,73 +1,133 @@
-from datetime import date 
-from datetime import datetime
+from users import create_user, find_user_by_name
+from vacations import (
+    create_vacation,
+    cancel_vacation,
+    get_vacation_status,
+    filter_vacations_by_user,
+    sort_vacations_by_start,
+)
+from storage import load_users, save_users, load_vacations, save_vacations
+from utils import input_int, input_date, input_str
 
-# Пользователь
-name = 'Сивова Яна'
-vacation_days_available = 28
-
-# Даты отпуска
-start_date, end_date = date.today(), date.today()
-
-# Статус заявки
-pplication_status = ''
-
-# Регистрация пользователя
-def create_user(name, days_available = 28):
-    return name, days_available
-
-# Уменьшение количества дней доступных для отпуска
-def reduce_vacation_days_available(vacation_duration):
-    global vacation_days_available
-    if vacation_days_available - vacation_duration < 0:
-        return False
-    else:
-        vacation_days_available-= vacation_duration
-        return True
+USERS_FILE = "data/users.json"
+VACATIONS_FILE = "data/vacations.json"
 
 
-# Создание заявки
-def create_vacation_application(inner_start_date, inner_end_date):
-    global application_status, start_date, end_date
-    duration = (inner_end_date - inner_start_date).days
-    if duration <= 0:
-        return False,'Ошибка! Миинимальная длина отпуска 1 день.'
-    if duration > vacation_days_available:
-        return False, f'Ошибка! Доступное количество дней {vacation_days_available}'
+def show_users(users: dict[int, dict]) -> None:
+    """Вывести список пользователей."""
+    if not users:
+        print("Пользователей нет.")
+        return
+    print(f"{'ID':<4}{'Имя':<25}{'Доступно':<10}{'Всего':<10}")
+    print("-" * 50)
+    for u in users.values():
+        print(
+            f"{u['id']:<4}{u['name']:<25}"
+            f"{u['vacation_days_available']:<10}{u['vacation_days_total']:<10}"
+        )
 
-    ok = reduce_vacation_days_available(duration)
-    if not(ok):
-        return False, 'Ошибка!'
-    start_date = inner_start_date
-    end_date = inner_end_date
-    application_status= 'pending'
-    return True, 'Заявка создана!'
 
-# Проверка статуса заявки
-def check_application_status():
-    return application_status
+def show_vacations(vacations: list[dict], users: dict[int, dict]) -> None:
+    """Вывести список заявок."""
+    if not vacations:
+        print("Заявок нет.")
+        return
+    print(
+        f"{'ID':<4}{'Пользователь':<25}{'Начало':<12}"
+        f"{'Конец':<12}{'Дней':<6}{'Статус'}"
+    )
+    print("-" * 80)
+    for v in sort_vacations_by_start(vacations):
+        user = users.get(v["user_id"])
+        user_name = user["name"] if user else f"id={v['user_id']}"
+        print(
+            f"{v['id']:<4}{user_name:<25}{v['start_date']:<12}"
+            f"{v['end_date']:<12}{v['duration']:<6}{get_vacation_status(v)}"
+        )
 
-print("=== Сервис учета отпусков ===")
-print()
 
-#Тест функции регистрация пользователя
-print('Регистрация пользователя в системе')
-input_name = input("Введите имя пользователя: ")
-input_vacation_days_available = int(input("Введите количество доступных дней для отпуска: "))
-user_name, vacation_days_available = create_user(input_name, input_vacation_days_available)
-print(f'Зарегистрирован пользователь {user_name}. Доступных дней для отпуска {vacation_days_available}')
-print()
+def menu() -> None:
+    """Основной цикл меню."""
+    users = load_users(USERS_FILE)
+    vacations = load_vacations(VACATIONS_FILE)
 
-# Тест функции создания заявки на отпуск
-print('Создание заявки на отпуск')
-input_start_date = input("Введите дату начала планируемого отпуска (dd.mm.yyyy): ")
-input_end_date = input("Введите дату окончания планируемого отпуска (dd.mm.yyyy): ")
-start = datetime.strptime(input_start_date, "%d.%m.%Y").date()
-end = datetime.strptime(input_end_date, "%d.%m.%Y").date()
-ok, message = create_vacation_application(start, end)
-print(message)
-print()
+    while True:
+        print("\n=== Система учёта отпусков ===")
+        print("1. Показать пользователей")
+        print("2. Зарегистрировать пользователя")
+        print("3. Найти пользователя по имени")
+        print("4. Создать заявку на отпуск")
+        print("5. Отменить заявку")
+        print("6. Показать все заявки")
+        print("7. Показать заявки пользователя")
+        print("0. Выход")
 
-# Тест функции проверки статуса заявки
-print('Проверка статуса заявки')
-print(f'Статус заявки: {check_application_status()}')
+        choice = input("Выберите действие: ").strip()
 
+        if choice == "1":
+            show_users(users)
+
+        elif choice == "2":
+            name = input_str("Имя пользователя: ")
+            days = input_int("Доступных дней (по умолчанию 28): ")
+            user = create_user(users, name, days)
+            print(f"Создан пользователь {user['name']} (id={user['id']}).")
+            save_users(USERS_FILE, users)
+
+        elif choice == "3":
+            query = input_str("Подстрока имени: ")
+            found = find_user_by_name(users, query)
+            if found:
+                for u in found:
+                    print(
+                        f"id={u['id']}, {u['name']},"
+                        f" доступно {u['vacation_days_available']}")
+            else:
+                print("Ничего не найдено.")
+
+        elif choice == "4":
+            show_users(users)
+            user_id = input_int("ID пользователя: ")
+            start = input_date("Дата начала (dd.mm.yyyy): ")
+            end = input_date("Дата окончания (dd.mm.yyyy): ")
+            ok, message = create_vacation(
+                vacations, users, user_id, start, end)
+            print(message)
+            if ok:
+                save_users(USERS_FILE, users)
+                save_vacations(VACATIONS_FILE, vacations)
+
+        elif choice == "5":
+            show_vacations(vacations, users)
+            vacation_id = input_int("ID заявки для отмены: ")
+            ok, message = cancel_vacation(vacations, users, vacation_id)
+            print(message)
+            if ok:
+                save_users(USERS_FILE, users)
+                save_vacations(VACATIONS_FILE, vacations)
+
+        elif choice == "6":
+            show_vacations(vacations, users)
+
+        elif choice == "7":
+            user_id = input_int("ID пользователя: ")
+            user_vacations = filter_vacations_by_user(vacations, user_id)
+            show_vacations(user_vacations, users)
+
+        elif choice == "0":
+            save_users(USERS_FILE, users)
+            save_vacations(VACATIONS_FILE, vacations)
+            print("Данные сохранены. До свидания!")
+            break
+
+        else:
+            print("Неизвестная команда.")
+
+
+def main() -> None:
+    """Точка входа в приложение."""
+    menu()
+
+
+if __name__ == "__main__":
+    main()
