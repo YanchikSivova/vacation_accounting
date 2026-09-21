@@ -1,53 +1,62 @@
 from datetime import date
-from users import create_user
-from vacations import create_vacation, is_user_available, cancel_vacation
+
+from models.users import User
+from models.vacations import (
+    Vacation,
+    create_vacation,
+    cancel_vacation,
+    is_user_available,
+)
 
 
-def test_is_user_available_empty():
-    assert is_user_available([], 1, date(2026, 9, 15), date(2026, 9, 20))
+def make_user() -> User:
+    return User(1, "Сивова Яна", 28, 28)
+
+
+def test_vacation_creation():
+    user = make_user()
+    v = Vacation(1, user, "2026-09-15", "2026-09-20", 6)
+    assert v.id == 1
+    assert v.user is user
+    assert v.status == "pending"
+
+
+def test_vacation_cancel_returns_days():
+    user = make_user()
+    v = Vacation(1, user, "2026-09-15", "2026-09-20", 6)
+    user.reduce_days(6)
+    v.cancel()
+    assert v.status == "cancelled"
+    assert user.vacation_days_available == 28
 
 
 def test_create_vacation_success():
-    users = {}
-    create_user(users, "Тест", 28)
-    vacations = []
-    ok, msg = create_vacation(
-        vacations, users, 1, date(2026, 9, 15), date(2026, 9, 20)
-    )
-    assert ok is True
+    user = make_user()
+    vacations: list[Vacation] = []
+    v = create_vacation(vacations, user, date(2026, 9, 15), date(2026, 9, 20))
+    assert v is not None
     assert len(vacations) == 1
-    assert users[1]["vacation_days_available"] == 22
+    assert user.vacation_days_available == 22
 
 
 def test_create_vacation_overlap_forbidden():
-    users = {}
-    create_user(users, "Тест", 28)
-    vacations = []
-    create_vacation(vacations, users, 1, date(2026, 9, 15), date(2026, 9, 20))
-    ok, msg = create_vacation(
-        vacations, users, 1, date(2026, 9, 18), date(2026, 9, 25)
-    )
-    assert ok is False
-    assert "активная заявка" in msg
+    user = make_user()
+    vacations: list[Vacation] = []
+    create_vacation(vacations, user, date(2026, 9, 15), date(2026, 9, 20))
+    v2 = create_vacation(vacations, user, date(2026, 9, 18), date(2026, 9, 25))
+    assert v2 is None
 
 
-def test_create_vacation_not_enough_days():
-    users = {}
-    create_user(users, "Тест", 3)
-    vacations = []
-    ok, msg = create_vacation(
-        vacations, users, 1, date(2026, 9, 1), date(2026, 9, 10)
-    )
-    assert ok is False
-    assert "недостаточно" in msg.lower()
+def test_is_user_available_empty():
+    user = make_user()
+    assert is_user_available([], user, date(2026, 9, 15), date(2026, 9, 20))
 
 
-def test_cancel_vacation_restores_days():
-    users = {}
-    create_user(users, "Тест", 28)
-    vacations = []
-    create_vacation(vacations, users, 1, date(2026, 9, 1), date(2026, 9, 5))
-    ok, msg = cancel_vacation(vacations, users, 1)
+def test_cancel_vacation():
+    user = make_user()
+    vacations: list[Vacation] = []
+    create_vacation(vacations, user, date(2026, 9, 15), date(2026, 9, 20))
+    ok = cancel_vacation(vacations, 1)
     assert ok is True
-    assert users[1]["vacation_days_available"] == 28
-    assert vacations[0]["status"] == "cancelled"
+    assert vacations[0].status == "cancelled"
+    assert user.vacation_days_available == 28

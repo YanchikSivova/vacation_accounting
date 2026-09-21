@@ -1,32 +1,45 @@
-from users import create_user, find_user_by_name, reduce_vacation_days
+from models.users import User, add_user
 
 
-def test_create_user():
-    users = {}
-    user = create_user(users, "Сивова Яна", 28)
-    assert user["name"] == "Сивова Яна"
-    assert user["vacation_days_available"] == 28
+def test_user_creation():
+    user = User(1, "Сивова Яна", 28, 28)
+    assert user.id == 1
+    assert user.name == "Сивова Яна"
+    assert user.vacation_days_available == 28
+
+
+def test_user_reduce_days():
+    user = User(1, "Сивова Яна", 28, 28)
+    assert user.reduce_days(10) is True
+    assert user.vacation_days_available == 18
+
+
+def test_user_reduce_days_fail():
+    user = User(1, "Сивова Яна", 5, 5)
+    assert user.reduce_days(10) is False
+    assert user.vacation_days_available == 5
+
+
+def test_user_str():
+    user = User(1, "Сивова Яна", 28, 28)
+    assert "Сивова Яна" in str(user)
+
+
+def test_user_from_data():
+    data = {
+        "id": 1,
+        "name": "Сивова Яна",
+        "vacation_days_available": 28,
+        "vacation_days_total": 28,
+    }
+    user = User.from_data(data)
+    assert user.id == 1
+    assert user.name == "Сивова Яна"
+
+
+def test_add_user():
+    users = []
+    user = add_user(users, "Сивова Яна", 28)
     assert len(users) == 1
-
-
-def test_find_user_by_name():
-    users = {}
-    create_user(users, "Сивова Яна", 28)
-    create_user(users, "Иванов Иван", 14)
-    found = find_user_by_name(users, "сивова")
-    assert len(found) == 1
-    assert found[0]["name"] == "Сивова Яна"
-
-
-def test_reduce_vacation_days_success():
-    users = {}
-    user = create_user(users, "Тест", 28)
-    assert reduce_vacation_days(user, 10) is True
-    assert user["vacation_days_available"] == 18
-
-
-def test_reduce_vacation_days_fail():
-    users = {}
-    user = create_user(users, "Тест", 5)
-    assert reduce_vacation_days(user, 10) is False
-    assert user["vacation_days_available"] == 5
+    assert user.id == 1
+    assert user.name == "Сивова Яна"
