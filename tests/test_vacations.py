@@ -7,6 +7,7 @@ from models.vacations import (
     VacationRequest,
     cancel_vacation_request,
     create_vacation_request,
+    find_request_by_id,
     is_user_available,
 )
 
@@ -37,6 +38,16 @@ def test_vacation_request_creation():
     assert request.user is user
     assert isinstance(request.vacation, Vacation)
     assert request.status == "pending"
+
+
+def test_find_request_by_id():
+    user = make_user()
+    request = VacationRequest(
+        1, user, VACATION_TYPES[0], "2026-09-15", "2026-09-20", 6
+    )
+
+    assert find_request_by_id([request], 1) is request
+    assert find_request_by_id([request], 2) is None
 
 
 def test_cancel_paid_vacation_request_returns_days():

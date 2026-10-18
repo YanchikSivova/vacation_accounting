@@ -116,6 +116,17 @@ class VacationRequest:
         )
 
 
+def find_request_by_id(
+    requests: list[VacationRequest],
+    request_id: int,
+) -> VacationRequest | None:
+    """Найти заявку на отпуск по идентификатору."""
+    return next(
+        (request for request in requests if request.id == request_id),
+        None,
+    )
+
+
 def is_user_available(
     requests: list[VacationRequest],
     user: User,
