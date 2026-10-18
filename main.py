@@ -1,4 +1,4 @@
-from models import User, Vacation
+from models import VACATION_TYPES, User, VacationRequest
 from models.users import (
     add_user,
     find_user_by_name,
@@ -6,26 +6,26 @@ from models.users import (
     show_users
 )
 from models.vacations import (
-    create_vacation,
-    cancel_vacation,
-    filter_vacations_by_user,
-    show_vacations,
+    create_vacation_request,
+    cancel_vacation_request,
+    filter_requests_by_user,
+    show_vacation_requests,
 )
 from storage import (
     load_users,
     save_users,
-    load_vacations,
-    save_vacations,
+    load_vacation_requests,
+    save_vacation_requests,
 )
 from utils import input_int, input_date, input_str
 
 USERS_FILE = "data/users.json"
-VACATIONS_FILE = "data/vacations.json"
+REQUESTS_FILE = "data/vacations.json"
 
 
 def create_new_vacation(
     users: list[User],
-    vacations: list[Vacation],
+    requests: list[VacationRequest],
 ) -> None:
     """Сценарий создания заявки на отпуск."""
     show_users(users)
@@ -35,19 +35,31 @@ def create_new_vacation(
         print("Ошибка: пользователь не найден.")
         return
 
+    print("Типы отпуска:")
+    for vacation in VACATION_TYPES:
+        print(f"{vacation.id}. {vacation.name}")
+    vacation_id = input_int("ID типа отпуска: ")
+    vacation = next(
+        (item for item in VACATION_TYPES if item.id == vacation_id),
+        None,
+    )
+    if vacation is None:
+        print("Ошибка: тип отпуска не найден.")
+        return
+
     start = input_date("Дата начала (dd.mm.yyyy): ")
     end = input_date("Дата окончания (dd.mm.yyyy): ")
 
-    vacation = create_vacation(vacations, user, start, end)
-    if vacation is None:
+    request = create_vacation_request(requests, user, vacation, start, end)
+    if request is None:
         return
-    print(f"Заявка №{vacation.id} создана (ожидает согласования).")
+    print(f"Заявка №{request.id} создана (ожидает согласования).")
 
 
 def menu() -> None:
     """Основной цикл меню."""
     users = load_users(USERS_FILE)
-    vacations = load_vacations(VACATIONS_FILE, users)
+    requests = load_vacation_requests(REQUESTS_FILE, users)
 
     while True:
         print("\n=== Система учёта отпусков ===")
@@ -67,7 +79,14 @@ def menu() -> None:
 
         elif choice == "2":
             name = input_str("Имя пользователя: ")
-            days = input_int("Доступных дней (по умолчанию 28): ")
+            while True:
+                days = input_int("Доступных дней (от 0 до 28): ")
+                if 0 <= days <= 28:
+                    break
+                print(
+                    "Ошибка: количество доступных дней должно быть "
+                    "от 0 до 28."
+                )
             user = add_user(users, name, days)
             print(f"Создан пользователь {user.name} (id={user.id}).")
             save_users(USERS_FILE, users)
@@ -82,22 +101,22 @@ def menu() -> None:
                 print("Ничего не найдено.")
 
         elif choice == "4":
-            create_new_vacation(users, vacations)
+            create_new_vacation(users, requests)
             save_users(USERS_FILE, users)
-            save_vacations(VACATIONS_FILE, vacations)
+            save_vacation_requests(REQUESTS_FILE, requests)
 
         elif choice == "5":
-            show_vacations(vacations)
-            vacation_id = input_int("ID заявки для отмены: ")
-            if cancel_vacation(vacations, vacation_id):
-                print(f"Заявка №{vacation_id} отменена.")
+            show_vacation_requests(requests)
+            request_id = input_int("ID заявки для отмены: ")
+            if cancel_vacation_request(requests, request_id):
+                print(f"Заявка №{request_id} отменена.")
                 save_users(USERS_FILE, users)
-                save_vacations(VACATIONS_FILE, vacations)
+                save_vacation_requests(REQUESTS_FILE, requests)
             else:
-                print(f"Заявка №{vacation_id} не найдена.")
+                print(f"Заявка №{request_id} не найдена.")
 
         elif choice == "6":
-            show_vacations(vacations)
+            show_vacation_requests(requests)
 
         elif choice == "7":
             user_id = input_int("ID пользователя: ")
@@ -105,12 +124,12 @@ def menu() -> None:
             if user is None:
                 print("Пользователь не найден.")
                 continue
-            user_vacations = filter_vacations_by_user(vacations, user)
-            show_vacations(user_vacations)
+            user_requests = filter_requests_by_user(requests, user)
+            show_vacation_requests(user_requests)
 
         elif choice == "0":
             save_users(USERS_FILE, users)
-            save_vacations(VACATIONS_FILE, vacations)
+            save_vacation_requests(REQUESTS_FILE, requests)
             print("Данные сохранены. До свидания!")
             break
 

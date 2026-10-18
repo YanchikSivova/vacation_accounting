@@ -1,3 +1,6 @@
+MAX_VACATION_DAYS = 28
+
+
 class User:
     """Пользователь системы учёта отпусков."""
 
@@ -9,13 +12,33 @@ class User:
         vacation_days_total: int = 28,
     ) -> None:
         """Создать объект пользователя."""
+        if not 0 <= vacation_days_total <= MAX_VACATION_DAYS:
+            raise ValueError(
+                f"Общее количество дней должно быть от 0 до "
+                f"{MAX_VACATION_DAYS}."
+            )
         self.id = user_id
         self.name = name
-        self.vacation_days_available = vacation_days_available
         self.vacation_days_total = vacation_days_total
+        self.vacation_days_available = vacation_days_available
+
+    @property
+    def vacation_days_available(self) -> int:
+        return self._vacation_days_available
+
+    @vacation_days_available.setter
+    def vacation_days_available(self, days: int) -> None:
+        if not 0 <= days <= min(self.vacation_days_total, MAX_VACATION_DAYS):
+            raise ValueError(
+                f"Доступное количество дней должно быть от 0 до "
+                f"{min(self.vacation_days_total, MAX_VACATION_DAYS)}."
+            )
+        self._vacation_days_available = days
 
     def reduce_days(self, duration: int) -> bool:
         """Списать дни отпуска. False, если дней недостаточно."""
+        if duration <= 0:
+            return False
         if self.vacation_days_available - duration < 0:
             return False
         self.vacation_days_available -= duration
@@ -23,16 +46,32 @@ class User:
 
     def restore_days(self, duration: int) -> None:
         """Вернуть дни при отмене заявки."""
-        self.vacation_days_available += duration
+        if duration <= 0:
+            raise ValueError(
+                "Количество возвращаемых дней должно быть больше 0."
+            )
+        self.vacation_days_available = min(
+            self.vacation_days_available + duration,
+            self.vacation_days_total,
+            MAX_VACATION_DAYS,
+        )
 
     @classmethod
     def from_data(cls, data: dict) -> "User":
         """Создать пользователя из данных JSON."""
+        total_days = min(
+            max(data["vacation_days_total"], 0),
+            MAX_VACATION_DAYS,
+        )
+        available_days = min(
+            max(data["vacation_days_available"], 0),
+            total_days,
+        )
         return cls(
             user_id=data["id"],
             name=data["name"],
-            vacation_days_available=data["vacation_days_available"],
-            vacation_days_total=data["vacation_days_total"],
+            vacation_days_available=available_days,
+            vacation_days_total=total_days,
         )
 
     def to_dict(self) -> dict:

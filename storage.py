@@ -1,7 +1,7 @@
 import json
 import os
 
-from models import User, Vacation
+from models import User, VacationRequest
 
 
 def load_users(filename: str) -> list[User]:
@@ -28,29 +28,35 @@ def save_users(filename: str, users: list[User]) -> None:
             )
 
 
-def load_vacations(filename: str, users: list[User]) -> list[Vacation]:
+def load_vacation_requests(
+    filename: str,
+    users: list[User],
+) -> list[VacationRequest]:
     """Загрузить заявки из JSON и восстановить связи с User."""
     if not os.path.exists(filename):
         return []
     try:
         with open(filename, "r", encoding="utf-8") as f:
             data = json.load(f)
-        result: list[Vacation] = []
+        result: list[VacationRequest] = []
         for item in data:
-            v = Vacation.from_data(item, users)
-            if v is not None:
-                result.append(v)
+            request = VacationRequest.from_data(item, users)
+            if request is not None:
+                result.append(request)
         return result
-    except (json.JSONDecodeError, KeyError, TypeError) as e:
+    except (json.JSONDecodeError, KeyError, TypeError, ValueError) as e:
         print(f"Ошибка чтения {filename}: {e}")
         return []
 
 
-def save_vacations(filename: str, vacations: list[Vacation]) -> None:
-    """Сохранить объекты Vacation в JSON."""
+def save_vacation_requests(
+    filename: str,
+    requests: list[VacationRequest],
+) -> None:
+    """Сохранить заявки на отпуск в JSON."""
     with open(filename, "w", encoding="utf-8") as f:
         json.dump(
-            [v.to_dict() for v in vacations],
+            [request.to_dict() for request in requests],
             f,
             ensure_ascii=False,
             indent=2,
