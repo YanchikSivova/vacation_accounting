@@ -19,6 +19,7 @@ ENV/
 # Logs and databases
 *.log
 *.sqlite3
+staticfiles/
 
 # OS metadata
 .DS_Store

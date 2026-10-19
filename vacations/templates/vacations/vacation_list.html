@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+
+{% block title %}Виды отпуска — Учёт отпусков{% endblock %}
+
+{% block content %}
+    <h1 class="mb-3">Виды отпуска</h1>
+    <p>
+        Доступный лимит от 0 до 28 дней расходуется только на ежегодный
+        оплачиваемый отпуск.
+    </p>
+    <p>Всего типов: {{ vacations|length }}</p>
+
+    <div class="row">
+        {% for vacation in vacations %}
+            <div class="col-md-6">
+                {% include "vacations/includes/vacation_card.html" %}
+            </div>
+        {% empty %}
+            <div class="col">
+                <p class="empty-state">Типы отпуска не найдены.</p>
+            </div>
+        {% endfor %}
+    </div>
+{% endblock %}

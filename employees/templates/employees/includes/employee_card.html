@@ -1,0 +1,18 @@
+<article class="card employee-card mb-3">
+    <div class="card-body">
+        <h2 class="h5 card-title">
+            {{ employee.name|default:"Без имени" }}
+        </h2>
+        <p class="card-text">
+            Доступно:
+            {{ employee.vacation_days_available|default:"0" }}
+            из {{ employee.vacation_days_total|default:"0" }} дней
+        </p>
+        <a
+            class="btn btn-outline-primary"
+            href="{% url 'employees:detail' employee.id %}"
+        >
+            Подробнее
+        </a>
+    </div>
+</article>

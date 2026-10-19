@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+
+{% block title %}
+    {% if vacation_request %}
+        Заявка №{{ vacation_request.id }} — Учёт отпусков
+    {% else %}
+        Заявка не найдена — Учёт отпусков
+    {% endif %}
+{% endblock %}
+
+{% block content %}
+    {% if vacation_request %}
+        <article class="card request-card">
+            <div class="card-body">
+                <h1 class="card-title">
+                    Заявка №{{ vacation_request.id }}
+                </h1>
+                <p class="card-text">
+                    Сотрудник:
+                    <a
+                        href="{% url 'employees:detail' vacation_request.user.id %}"
+                    >
+                        {{ vacation_request.user.name|default:"Без имени" }}
+                    </a>
+                </p>
+                <p class="card-text">
+                    Тип отпуска:
+                    {{ vacation_request.vacation.name|default:"Не указан" }}
+                </p>
+                <p class="card-text">
+                    Период: {{ vacation_request.start_date }}
+                    — {{ vacation_request.end_date }}
+                </p>
+                <p class="card-text">
+                    Продолжительность: {{ vacation_request.duration }} дней
+                </p>
+                <p class="card-text">
+                    Статус:
+                    {% include "leave_requests/includes/request_status.html" %}
+                </p>
+            </div>
+        </article>
+    {% else %}
+        <section class="empty-state">
+            <h1 class="text-danger">Заявка не найдена</h1>
+            <p>Заявки с таким идентификатором нет в системе.</p>
+        </section>
+    {% endif %}
+
+    <a
+        class="btn btn-outline-secondary mt-3"
+        href="{% url 'leave_requests:list' %}"
+    >
+        ← К списку заявок
+    </a>
+{% endblock %}

@@ -1,0 +1,13 @@
+{% if vacation_request.status == "cancelled" %}
+    <span class="badge text-bg-secondary request-status request-status-cancelled">
+        Отменена
+    </span>
+{% elif vacation_request.status == "approved" %}
+    <span class="badge text-bg-success request-status request-status-approved">
+        Согласована
+    </span>
+{% else %}
+    <span class="badge text-bg-primary request-status request-status-pending">
+        Ожидает согласования
+    </span>
+{% endif %}

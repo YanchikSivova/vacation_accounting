@@ -1,0 +1,16 @@
+<article class="card request-card mb-3">
+    <div class="card-body">
+        <h2 class="h5 card-title">
+            <a
+                href="{% url 'leave_requests:detail' vacation_request.id %}"
+            >
+                Заявка №{{ vacation_request.id }}
+            </a>
+        </h2>
+        <p class="card-text">
+            {{ vacation_request.vacation.name|default:"Тип не указан" }}
+            · {{ vacation_request.start_date }}
+        </p>
+        {% include "leave_requests/includes/request_status.html" %}
+    </div>
+</article>

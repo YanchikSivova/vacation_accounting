@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+
+{% block title %}
+    {% if employee %}
+        {{ employee.name|default:"Сотрудник" }} — Учёт отпусков
+    {% else %}
+        Сотрудник не найден — Учёт отпусков
+    {% endif %}
+{% endblock %}
+
+{% block content %}
+    {% if employee %}
+        <article class="card employee-card">
+            <div class="card-body">
+                <h1 class="card-title">
+                    {{ employee.name|default:"Без имени" }}
+                </h1>
+                <p class="card-text">ID: {{ employee.id }}</p>
+                <p class="card-text">
+                    Доступно оплачиваемых дней:
+                    {{ employee.vacation_days_available }}
+                    из {{ employee.vacation_days_total }}
+                </p>
+            </div>
+        </article>
+    {% else %}
+        <section class="empty-state">
+            <h1 class="text-danger">Сотрудник не найден</h1>
+            <p>Сотрудника с таким идентификатором нет в системе.</p>
+        </section>
+    {% endif %}
+
+    <a
+        class="btn btn-outline-secondary mt-3"
+        href="{% url 'employees:list' %}"
+    >
+        ← К списку сотрудников
+    </a>
+{% endblock %}

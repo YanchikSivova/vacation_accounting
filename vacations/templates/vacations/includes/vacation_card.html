@@ -1,0 +1,16 @@
+<article class="card vacation-card mb-3">
+    <div class="card-body">
+        <h2 class="h5 card-title">
+            {{ vacation.name|default:"Без названия" }}
+        </h2>
+        {% if vacation.deducts_vacation_days %}
+            <span class="badge text-bg-primary">
+                Уменьшает лимит дней
+            </span>
+        {% else %}
+            <span class="badge text-bg-secondary">
+                Не уменьшает лимит дней
+            </span>
+        {% endif %}
+    </div>
+</article>

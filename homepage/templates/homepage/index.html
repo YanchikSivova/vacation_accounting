@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+
+{% block title %}Главная — Учёт отпусков{% endblock %}
+
+{% block content %}
+    <section
+        id="page-home"
+        class="home-panel p-4 p-md-5 rounded"
+    >
+        <h1 class="display-5">Сервис учёта отпусков</h1>
+        <p class="lead">
+            Информация о сотрудниках, типах отпуска и заявках в одном месте.
+        </p>
+        <p>
+            Сервис помогает просматривать остаток оплачиваемых дней и
+            отслеживать периоды отпусков сотрудников.
+        </p>
+        <div class="d-flex flex-wrap gap-2">
+            <a
+                class="btn btn-primary"
+                href="{% url 'employees:list' %}"
+            >
+                Сотрудники
+            </a>
+            <a
+                class="btn btn-outline-primary"
+                href="{% url 'vacations:list' %}"
+            >
+                Виды отпуска
+            </a>
+            <a
+                class="btn btn-secondary"
+                href="{% url 'leave_requests:list' %}"
+            >
+                Заявки
+            </a>
+        </div>
+    </section>
+{% endblock %}

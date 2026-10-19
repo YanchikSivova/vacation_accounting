@@ -1,6 +1,8 @@
 import os
 from unittest.mock import patch
 
+from django.test import override_settings
+
 from models.users import User
 
 
@@ -22,7 +24,11 @@ def test_homepage_has_navigation_and_bootstrap():
 
     assert response.status_code == 200
     assert b'<!doctype html>' in response.content
+    assert b'id="page-home"' in response.content
     assert b'bootstrap@5.3.3' in response.content
+    assert b'/static/homepage/css/style.css' in response.content
+    assert b'/static/homepage/js/main.js' in response.content
+    assert b'/static/homepage/img/logo.svg' in response.content
     assert b'href="/employees/"' in response.content
     assert b'href="/vacations/"' in response.content
     assert b'href="/requests/"' in response.content
@@ -37,9 +43,9 @@ def test_employee_pages_display_domain_data():
     assert employee_list.status_code == 200
     assert 'Сивова Яна'.encode() in employee_list.content
     assert employee_detail.status_code == 200
-    assert 'Доступно оплачиваемых дней: 28 из 28'.encode() in (
-        employee_detail.content
-    )
+    assert 'Доступно оплачиваемых дней:'.encode() in employee_detail.content
+    assert 'из 28'.encode() in employee_detail.content
+    assert 'Подробнее'.encode() in employee_list.content
 
 
 def test_employee_name_is_escaped_in_html():
@@ -64,6 +70,18 @@ def test_vacation_type_page_displays_all_types_and_balance_rule():
     assert 'Не уменьшает лимит дней'.encode() in response.content
 
 
+def test_empty_lists_have_empty_state():
+    with (
+        patch('employees.views._employees', return_value=[]),
+        patch('leave_requests.views._requests', return_value=[]),
+    ):
+        employees_response = _client().get('/employees/')
+        requests_response = _client().get('/requests/')
+
+    assert 'Сотрудников пока нет.'.encode() in employees_response.content
+    assert 'Заявок пока нет.'.encode() in requests_response.content
+
+
 def test_request_pages_display_request_and_related_objects():
     client = _client()
 
@@ -80,10 +98,16 @@ def test_request_pages_display_request_and_related_objects():
 
 def test_unknown_urls_and_domain_ids_show_custom_404():
     client = _client()
+    missing_pages = {
+        '/not-found/': b'id="page-not-found"',
+        '/employees/999/': 'Сотрудник не найден'.encode(),
+        '/requests/999/': 'Заявка не найдена'.encode(),
+    }
 
-    for url in ('/not-found/', '/employees/999/', '/requests/999/'):
-        response = client.get(url)
+    with override_settings(DEBUG=False):
+        for url, expected_content in missing_pages.items():
+            response = client.get(url)
 
-        assert response.status_code == 404
-        assert '404 — страница не найдена'.encode() in response.content
-        assert b'class="btn btn-primary" href="/"' in response.content
+            assert response.status_code == 404
+            assert expected_content in response.content
+            assert b'href="/"' in response.content

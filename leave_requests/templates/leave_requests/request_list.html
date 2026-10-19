@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+
+{% block title %}Заявки на отпуск — Учёт отпусков{% endblock %}
+
+{% block content %}
+    <h1 class="mb-3">Заявки на отпуск</h1>
+    <p>Всего заявок: {{ requests|length }}</p>
+
+    <div class="row">
+        {% for vacation_request in requests %}
+            <div class="col-lg-6">
+                {% include "leave_requests/includes/request_card.html" %}
+            </div>
+        {% empty %}
+            <div class="col">
+                <p class="empty-state">Заявок пока нет.</p>
+            </div>
+        {% endfor %}
+    </div>
+{% endblock %}
