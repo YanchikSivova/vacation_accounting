@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+
+{% block title %}Свободные сотрудники — Учёт отпусков{% endblock %}
+
+{% block content %}
+    <h1 class="mb-3">Свободные сотрудники</h1>
+    <p>
+        Найдите сотрудников, у которых нет активной заявки на выбранную дату.
+    </p>
+
+    <form method="get" class="filter-form mb-4">
+        <label for="date" class="form-label">Дата</label>
+        <div class="d-flex gap-2">
+            <input
+                class="form-control"
+                type="date"
+                id="date"
+                name="date"
+                value="{{ selected_date }}"
+                required
+            >
+            <button type="submit" class="btn btn-primary">Найти</button>
+        </div>
+    </form>
+
+    {% if error %}
+        <p class="alert alert-danger" role="alert">{{ error }}</p>
+    {% elif selected_date %}
+        <h2 class="h4">Результаты на {{ selected_date }}</h2>
+        <div class="row">
+            {% for employee in employees %}
+                <div class="col-md-6 col-lg-4">
+                    {% include "employees/includes/employee_card.html" %}
+                </div>
+            {% empty %}
+                <div class="col">
+                    <p class="empty-state">
+                        На выбранную дату нет свободных сотрудников.
+                    </p>
+                </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+{% endblock %}

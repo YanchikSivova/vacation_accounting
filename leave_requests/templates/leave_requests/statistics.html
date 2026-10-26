@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+
+{% block title %}Статистика заявок — Учёт отпусков{% endblock %}
+
+{% block content %}
+    <h1 class="mb-3">Статистика заявок на отпуск</h1>
+
+    <section class="card mb-4">
+        <div class="card-body">
+            <h2 class="h5 card-title">Сводные данные</h2>
+            <p class="mb-1">Всего заявок: {{ summary.total_requests }}</p>
+            <p class="mb-0">
+                Активных заявок: {{ summary.active_requests }}
+            </p>
+        </div>
+    </section>
+
+    <h2 class="h4">По сотрудникам</h2>
+    <div class="row mb-4">
+        {% for item in by_employee %}
+            <div class="col-md-6 col-lg-4">
+                <article class="card statistics-card mb-3">
+                    <div class="card-body">
+                        <h3 class="h5 card-title">{{ item.employee_name }}</h3>
+                        <p class="card-text">
+                            Активных заявок: {{ item.active_request_count }}
+                        </p>
+                        <p class="card-text mb-0">
+                            Запрошено оплачиваемых дней:
+                            {{ item.active_paid_days }}
+                        </p>
+                    </div>
+                </article>
+            </div>
+        {% empty %}
+            <p class="empty-state">Данные о сотрудниках отсутствуют.</p>
+        {% endfor %}
+    </div>
+
+    <h2 class="h4">По типам отпуска</h2>
+    <div class="row">
+        {% for item in by_vacation_type %}
+            <div class="col-md-6 col-lg-4">
+                <article class="card statistics-card mb-3">
+                    <div class="card-body">
+                        <h3 class="h5 card-title">{{ item.vacation_name }}</h3>
+                        <p class="card-text mb-0">
+                            Активных заявок: {{ item.active_request_count }}
+                        </p>
+                    </div>
+                </article>
+            </div>
+        {% empty %}
+            <p class="empty-state">Данные о типах отпуска отсутствуют.</p>
+        {% endfor %}
+    </div>
+
+    <h2 class="h4 mt-4">Сотрудники с несколькими активными заявками</h2>
+    <div class="row">
+        {% for item in high_activity %}
+            <div class="col-md-6 col-lg-4">
+                <article class="card statistics-card mb-3">
+                    <div class="card-body">
+                        <h3 class="h5 card-title">{{ item.employee_name }}</h3>
+                        <p class="card-text mb-0">
+                            Активных заявок: {{ item.active_request_count }}
+                        </p>
+                    </div>
+                </article>
+            </div>
+        {% empty %}
+            <p class="empty-state">
+                Нет сотрудников с несколькими активными заявками.
+            </p>
+        {% endfor %}
+    </div>
+{% endblock %}

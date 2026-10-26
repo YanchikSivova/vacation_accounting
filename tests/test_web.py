@@ -1,9 +1,11 @@
 import os
-from unittest.mock import patch
 
 from django.test import override_settings
+import pytest
 
-from models.users import User
+from db import database
+from db.create_db import create_database
+from db.database import get_connection
 
 
 def _client():
@@ -19,6 +21,63 @@ def _client():
     return Client()
 
 
+@pytest.fixture(autouse=True)
+def project_database(monkeypatch, tmp_path):
+    database_path = tmp_path / 'project.sqlite'
+    monkeypatch.setattr(database, 'DB_PATH', database_path)
+    create_database(database_path)
+
+    connection = get_connection(database_path)
+    try:
+        connection.executemany(
+            """
+            INSERT INTO employees (
+                id, name, vacation_days_available, vacation_days_total
+            )
+            VALUES (?, ?, ?, ?)
+            """,
+            [
+                (1, 'Сивова Яна', 28, 28),
+                (2, 'Машуня', 20, 28),
+            ],
+        )
+        connection.executemany(
+            """
+            INSERT INTO vacation_types (id, name, deducts_vacation_days)
+            VALUES (?, ?, ?)
+            """,
+            [
+                (1, 'Ежегодный оплачиваемый', 1),
+                (2, 'Неоплачиваемый', 0),
+                (3, 'По уходу за ребёнком', 0),
+                (4, 'По болезни', 0),
+            ],
+        )
+        connection.executemany(
+            """
+            INSERT INTO leave_requests (
+                id, employee_id, vacation_type_id, start_date, end_date,
+                duration, status
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            [
+                (
+                    1, 1, 1, '2026-09-15', '2026-09-25', 11, 'cancelled',
+                ),
+                (
+                    2, 2, 1, '2026-11-02', '2026-11-05', 4, 'approved',
+                ),
+                (
+                    3, 1, 2, '2026-12-01', '2026-12-02', 2, 'pending',
+                ),
+            ],
+        )
+        connection.commit()
+    finally:
+        connection.close()
+
+
 def test_homepage_has_navigation_and_bootstrap():
     response = _client().get('/')
 
@@ -32,6 +91,8 @@ def test_homepage_has_navigation_and_bootstrap():
     assert b'href="/employees/"' in response.content
     assert b'href="/vacations/"' in response.content
     assert b'href="/requests/"' in response.content
+    assert b'href="/employees/available/"' in response.content
+    assert b'href="/requests/statistics/"' in response.content
 
 
 def test_employee_pages_display_domain_data():
@@ -48,11 +109,55 @@ def test_employee_pages_display_domain_data():
     assert 'Подробнее'.encode() in employee_list.content
 
 
-def test_employee_name_is_escaped_in_html():
-    employee = User(7, '<script>alert(1)</script>', 28, 28)
+def test_employee_list_uses_database_pagination():
+    connection = get_connection()
+    try:
+        connection.executemany(
+            """
+            INSERT INTO employees (
+                id, name, vacation_days_available, vacation_days_total
+            )
+            VALUES (?, ?, ?, ?)
+            """,
+            [
+                (employee_id, f'A employee {employee_id}', 28, 28)
+                for employee_id in range(3, 12)
+            ],
+        )
+        connection.commit()
+    finally:
+        connection.close()
 
-    with patch('employees.views._employees', return_value=[employee]):
-        response = _client().get('/employees/')
+    client = _client()
+    first_page = client.get('/employees/')
+    second_page = client.get('/employees/?page=2')
+    missing_page = client.get('/employees/?page=99')
+
+    assert 'Всего сотрудников: 11'.encode() in first_page.content
+    assert 'Страница 1 из 2'.encode() in first_page.content
+    assert 'Сивова Яна'.encode() not in first_page.content
+    assert 'Сивова Яна'.encode() in second_page.content
+    assert 'Страница 2 из 2'.encode() in second_page.content
+    assert missing_page.status_code == 404
+
+
+def test_employee_name_is_escaped_in_html():
+    connection = get_connection()
+    try:
+        connection.execute(
+            """
+            INSERT INTO employees (
+                id, name, vacation_days_available, vacation_days_total
+            )
+            VALUES (?, ?, ?, ?)
+            """,
+            (7, '<script>alert(1)</script>', 28, 28),
+        )
+        connection.commit()
+    finally:
+        connection.close()
+
+    response = _client().get('/employees/')
 
     assert response.status_code == 200
     assert b'&lt;script&gt;alert(1)&lt;/script&gt;' in response.content
@@ -71,12 +176,16 @@ def test_vacation_type_page_displays_all_types_and_balance_rule():
 
 
 def test_empty_lists_have_empty_state():
-    with (
-        patch('employees.views._employees', return_value=[]),
-        patch('leave_requests.views._requests', return_value=[]),
-    ):
-        employees_response = _client().get('/employees/')
-        requests_response = _client().get('/requests/')
+    connection = get_connection()
+    try:
+        connection.execute('DELETE FROM leave_requests')
+        connection.execute('DELETE FROM employees')
+        connection.commit()
+    finally:
+        connection.close()
+
+    employees_response = _client().get('/employees/')
+    requests_response = _client().get('/requests/')
 
     assert 'Сотрудников пока нет.'.encode() in employees_response.content
     assert 'Заявок пока нет.'.encode() in requests_response.content
@@ -94,6 +203,46 @@ def test_request_pages_display_request_and_related_objects():
     assert 'Сивова Яна'.encode() in request_detail.content
     assert 'Ежегодный оплачиваемый'.encode() in request_detail.content
     assert 'Отменена'.encode() in request_detail.content
+
+
+def test_active_request_filter_and_date_search_use_database():
+    client = _client()
+
+    active_requests = client.get('/requests/active/')
+    approved_requests = client.get('/requests/?status=approved')
+    available_on_request_date = client.get(
+        '/employees/available/?date=2026-11-03'
+    )
+    available_on_empty_date = client.get(
+        '/employees/available/?date=2026-10-01'
+    )
+
+    assert active_requests.status_code == 200
+    assert 'Заявка №2'.encode() in active_requests.content
+    assert 'Заявка №1'.encode() not in active_requests.content
+    assert approved_requests.status_code == 200
+    assert 'Заявка №2'.encode() in approved_requests.content
+    assert 'Заявка №3'.encode() not in approved_requests.content
+    assert available_on_request_date.status_code == 200
+    assert 'Сивова Яна'.encode() in available_on_request_date.content
+    assert 'Машуня'.encode() not in available_on_request_date.content
+    assert available_on_empty_date.status_code == 200
+    assert 'Сивова Яна'.encode() in available_on_empty_date.content
+    assert 'Машуня'.encode() in available_on_empty_date.content
+
+
+def test_invalid_search_date_and_statistics_page():
+    client = _client()
+
+    invalid_date = client.get('/employees/available/?date=not-a-date')
+    statistics = client.get('/requests/statistics/')
+
+    assert invalid_date.status_code == 200
+    assert 'Укажите корректную дату'.encode() in invalid_date.content
+    assert statistics.status_code == 200
+    assert 'Всего заявок: 3'.encode() in statistics.content
+    assert 'Активных заявок: 2'.encode() in statistics.content
+    assert 'Запрошено оплачиваемых дней:'.encode() in statistics.content
 
 
 def test_unknown_urls_and_domain_ids_show_custom_404():

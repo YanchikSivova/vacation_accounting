@@ -4,7 +4,11 @@
 
 {% block content %}
     <h1 class="mb-3">Сотрудники</h1>
-    <p>Всего сотрудников: {{ employees|length }}</p>
+    <p>Всего сотрудников: {{ total_employees }}</p>
+
+    {% if page_error %}
+        <p class="alert alert-danger" role="alert">{{ page_error }}</p>
+    {% endif %}
 
     <div class="row">
         {% for employee in employees %}
@@ -17,4 +21,36 @@
             </div>
         {% endfor %}
     </div>
+
+    {% if page_count > 1 %}
+        <nav aria-label="Страницы списка сотрудников">
+            <ul class="pagination">
+                {% if page_number > 1 %}
+                    <li class="page-item">
+                        <a
+                            class="page-link"
+                            href="{% url 'employees:list' %}?page={{ page_number|add:'-1' }}"
+                        >
+                            Назад
+                        </a>
+                    </li>
+                {% endif %}
+                <li class="page-item disabled">
+                    <span class="page-link">
+                        Страница {{ page_number }} из {{ page_count }}
+                    </span>
+                </li>
+                {% if page_number < page_count %}
+                    <li class="page-item">
+                        <a
+                            class="page-link"
+                            href="{% url 'employees:list' %}?page={{ page_number|add:'1' }}"
+                        >
+                            Далее
+                        </a>
+                    </li>
+                {% endif %}
+            </ul>
+        </nav>
+    {% endif %}
 {% endblock %}

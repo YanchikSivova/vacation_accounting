@@ -3,7 +3,48 @@
 {% block title %}Заявки на отпуск — Учёт отпусков{% endblock %}
 
 {% block content %}
-    <h1 class="mb-3">Заявки на отпуск</h1>
+    {% if active_only %}
+        <h1 class="mb-3">Активные заявки на отпуск</h1>
+    {% else %}
+        <h1 class="mb-3">Заявки на отпуск</h1>
+    {% endif %}
+
+    {% if error %}
+        <p class="alert alert-danger" role="alert">{{ error }}</p>
+    {% endif %}
+
+    {% if not active_only %}
+        <form method="get" class="filter-form mb-3">
+            <label for="status" class="form-label">Фильтр по статусу</label>
+            <div class="d-flex gap-2">
+                <select id="status" name="status" class="form-select">
+                    <option value="">Все заявки</option>
+                    <option
+                        value="pending"
+                        {% if selected_status == "pending" %}selected{% endif %}
+                    >
+                        Ожидает согласования
+                    </option>
+                    <option
+                        value="approved"
+                        {% if selected_status == "approved" %}selected{% endif %}
+                    >
+                        Согласована
+                    </option>
+                    <option
+                        value="cancelled"
+                        {% if selected_status == "cancelled" %}selected{% endif %}
+                    >
+                        Отменена
+                    </option>
+                </select>
+                <button type="submit" class="btn btn-outline-primary">
+                    Применить
+                </button>
+            </div>
+        </form>
+    {% endif %}
+
     <p>Всего заявок: {{ requests|length }}</p>
 
     <div class="row">

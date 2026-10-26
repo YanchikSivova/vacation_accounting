@@ -34,6 +34,18 @@
             >
                 Заявки
             </a>
+            <a
+                class="btn btn-outline-secondary"
+                href="{% url 'employees:available' %}"
+            >
+                Свободные сотрудники
+            </a>
+            <a
+                class="btn btn-outline-secondary"
+                href="{% url 'leave_requests:statistics' %}"
+            >
+                Статистика
+            </a>
         </div>
     </section>
 {% endblock %}

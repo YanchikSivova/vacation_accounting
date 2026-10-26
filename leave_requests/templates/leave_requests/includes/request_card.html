@@ -8,8 +8,11 @@
             </a>
         </h2>
         <p class="card-text">
-            {{ vacation_request.vacation.name|default:"Тип не указан" }}
+            {{ vacation_request.vacation_name|default:"Тип не указан" }}
             · {{ vacation_request.start_date }}
+        </p>
+        <p class="card-text">
+            Сотрудник: {{ vacation_request.employee_name|default:"Не указан" }}
         </p>
         {% include "leave_requests/includes/request_status.html" %}
     </div>

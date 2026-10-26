@@ -1,29 +1,45 @@
-from django.conf import settings
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import render
 
-from models.users import User
-from models.vacations import (
-    VacationRequest,
-    find_request_by_id,
-    sort_requests_by_start,
+from db.repository import (
+    REQUEST_STATUSES,
+    find_request,
+    list_requests,
+    request_statistics as load_request_statistics,
 )
-from storage import load_users, load_vacation_requests
-
-
-def _requests() -> list[VacationRequest]:
-    users: list[User] = load_users(
-        str(settings.BASE_DIR / 'data' / 'users.json')
-    )
-    return load_vacation_requests(
-        str(settings.BASE_DIR / 'data' / 'vacations.json'),
-        users,
-    )
 
 
 def request_list(request: HttpRequest) -> HttpResponse:
-    """Показать заявки, отсортированные по дате начала."""
-    context = {'requests': sort_requests_by_start(_requests())}
+    """Show leave requests, optionally filtered by status."""
+    selected_status = request.GET.get('status', '').strip()
+    error = ''
+    if selected_status and selected_status not in REQUEST_STATUSES:
+        error = 'Выбран неизвестный статус заявки.'
+        requests = []
+    else:
+        requests = list_requests(selected_status or None)
+
+    context = {
+        'requests': requests,
+        'selected_status': selected_status,
+        'error': error,
+        'active_only': False,
+    }
+    return render(
+        request,
+        'leave_requests/request_list.html',
+        context,
+    )
+
+
+def active_request_list(request: HttpRequest) -> HttpResponse:
+    """Show only pending and approved leave requests."""
+    context = {
+        'requests': list_requests(active_only=True),
+        'selected_status': '',
+        'error': '',
+        'active_only': True,
+    }
     return render(
         request,
         'leave_requests/request_list.html',
@@ -36,7 +52,7 @@ def request_detail(
     request_id: int,
 ) -> HttpResponse:
     """Показать заявку; для неизвестного ID вернуть страницу 404."""
-    vacation_request = find_request_by_id(_requests(), request_id)
+    vacation_request = find_request(request_id)
     context = {'vacation_request': vacation_request}
     return render(
         request,
@@ -44,3 +60,9 @@ def request_detail(
         context,
         status=404 if vacation_request is None else 200,
     )
+
+
+def request_statistics(request: HttpRequest) -> HttpResponse:
+    """Display leave-request totals grouped by employee and leave type."""
+    context = load_request_statistics()
+    return render(request, 'leave_requests/statistics.html', context)

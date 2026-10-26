@@ -4,11 +4,20 @@
         <a class="nav-link" href="{% url 'employees:list' %}">
             Сотрудники
         </a>
+        <a class="nav-link" href="{% url 'employees:available' %}">
+            Свободные сотрудники
+        </a>
         <a class="nav-link" href="{% url 'vacations:list' %}">
             Виды отпуска
         </a>
         <a class="nav-link" href="{% url 'leave_requests:list' %}">
-            Заявки
+            Все заявки
+        </a>
+        <a class="nav-link" href="{% url 'leave_requests:active' %}">
+            Активные заявки
+        </a>
+        <a class="nav-link" href="{% url 'leave_requests:statistics' %}">
+            Статистика
         </a>
     </div>
 </nav>
