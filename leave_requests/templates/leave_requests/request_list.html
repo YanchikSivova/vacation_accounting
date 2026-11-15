@@ -9,43 +9,99 @@
         <h1 class="mb-3">Заявки на отпуск</h1>
     {% endif %}
 
-    {% if error %}
+    {% for error in errors %}
         <p class="alert alert-danger" role="alert">{{ error }}</p>
-    {% endif %}
+    {% endfor %}
 
-    {% if not active_only %}
-        <form method="get" class="filter-form mb-3">
-            <label for="status" class="form-label">Фильтр по статусу</label>
-            <div class="d-flex gap-2">
-                <select id="status" name="status" class="form-select">
-                    <option value="">Все заявки</option>
-                    <option
-                        value="pending"
-                        {% if selected_status == "pending" %}selected{% endif %}
-                    >
-                        Ожидает согласования
-                    </option>
-                    <option
-                        value="approved"
-                        {% if selected_status == "approved" %}selected{% endif %}
-                    >
-                        Согласована
-                    </option>
-                    <option
-                        value="cancelled"
-                        {% if selected_status == "cancelled" %}selected{% endif %}
-                    >
-                        Отменена
-                    </option>
+    <form method="get" class="filter-form mb-3">
+        <div class="row g-3 align-items-end">
+            {% if not active_only %}
+                <div class="col-md-3">
+                    <label for="status" class="form-label">Статус</label>
+                    <select id="status" name="status" class="form-select">
+                        <option value="">Все заявки</option>
+                        <option value="pending"
+                            {% if selected_status == "pending" %}selected{% endif %}
+                        >Ожидает согласования</option>
+                        <option value="approved"
+                            {% if selected_status == "approved" %}selected{% endif %}
+                        >Согласована</option>
+                        <option value="cancelled"
+                            {% if selected_status == "cancelled" %}selected{% endif %}
+                        >Отменена</option>
+                    </select>
+                </div>
+            {% endif %}
+            <div class="col-md-3">
+                <label for="date" class="form-label">Дата отпуска</label>
+                <input
+                    class="form-control"
+                    type="date"
+                    id="date"
+                    name="date"
+                    value="{{ selected_date }}"
+                >
+            </div>
+            <div class="col-md-3">
+                <label for="employee" class="form-label">Сотрудник</label>
+                <select id="employee" name="employee" class="form-select">
+                    <option value="">Все сотрудники</option>
+                    {% for employee in employees %}
+                        <option
+                            value="{{ employee.pk }}"
+                            {% if selected_employee == employee.pk|stringformat:"s" %}selected{% endif %}
+                        >{{ employee.name }}</option>
+                    {% endfor %}
                 </select>
+            </div>
+            <div class="col-md-3">
+                <label for="vacation" class="form-label">Тип отпуска</label>
+                <select id="vacation" name="vacation" class="form-select">
+                    <option value="">Все типы</option>
+                    {% for vacation in vacations %}
+                        <option
+                            value="{{ vacation.pk }}"
+                            {% if selected_vacation == vacation.pk|stringformat:"s" %}selected{% endif %}
+                        >{{ vacation.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label for="sort" class="form-label">Сортировать по</label>
+                <select id="sort" name="sort" class="form-select">
+                    <option value="date"
+                        {% if selected_sort == "date" %}selected{% endif %}
+                    >Дате начала</option>
+                    <option value="employee"
+                        {% if selected_sort == "employee" %}selected{% endif %}
+                    >Сотруднику</option>
+                    <option value="vacation"
+                        {% if selected_sort == "vacation" %}selected{% endif %}
+                    >Типу отпуска</option>
+                    <option value="duration"
+                        {% if selected_sort == "duration" %}selected{% endif %}
+                    >Продолжительности</option>
+                    <option value="status"
+                        {% if selected_sort == "status" %}selected{% endif %}
+                    >Статусу</option>
+                </select>
+            </div>
+            <div class="col-md-3 d-flex gap-2">
                 <button type="submit" class="btn btn-outline-primary">
                     Применить
                 </button>
+                {% if active_only %}
+                    <a class="btn btn-outline-secondary"
+                        href="{% url 'leave_requests:active' %}">Сбросить</a>
+                {% else %}
+                    <a class="btn btn-outline-secondary"
+                        href="{% url 'leave_requests:list' %}">Сбросить</a>
+                {% endif %}
             </div>
-        </form>
-    {% endif %}
+        </div>
+    </form>
 
-    <p>Всего заявок: {{ requests|length }}</p>
+    <p>Всего заявок: {{ total_requests }}</p>
 
     <div class="row">
         {% for vacation_request in requests %}
@@ -58,4 +114,47 @@
             </div>
         {% endfor %}
     </div>
+
+    {% if page_obj.paginator.num_pages > 1 %}
+        <nav aria-label="Страницы заявок">
+            <ul class="pagination justify-content-center">
+                {% if page_obj.has_previous %}
+                    <li class="page-item">
+                        <a class="page-link"
+                            href="{% querystring page=page_obj.previous_page_number %}">
+                            Назад
+                        </a>
+                    </li>
+                {% else %}
+                    <li class="page-item disabled">
+                        <span class="page-link">Назад</span>
+                    </li>
+                {% endif %}
+                {% for page_number in page_obj.paginator.page_range %}
+                    <li class="page-item{% if page_number == page_obj.number %} active{% endif %}">
+                        {% if page_number == page_obj.number %}
+                            <span class="page-link">{{ page_number }}</span>
+                        {% else %}
+                            <a class="page-link"
+                                href="{% querystring page=page_number %}">
+                                {{ page_number }}
+                            </a>
+                        {% endif %}
+                    </li>
+                {% endfor %}
+                {% if page_obj.has_next %}
+                    <li class="page-item">
+                        <a class="page-link"
+                            href="{% querystring page=page_obj.next_page_number %}">
+                            Далее
+                        </a>
+                    </li>
+                {% else %}
+                    <li class="page-item disabled">
+                        <span class="page-link">Далее</span>
+                    </li>
+                {% endif %}
+            </ul>
+        </nav>
+    {% endif %}
 {% endblock %}

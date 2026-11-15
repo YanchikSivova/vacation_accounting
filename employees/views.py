@@ -1,14 +1,11 @@
 from datetime import date
 
+from django.core.paginator import Paginator
 from django.http import Http404, HttpRequest, HttpResponse
 from django.shortcuts import render
 
-from db.repository import (
-    count_employees,
-    find_available_employees,
-    find_employee,
-    list_employees,
-)
+from leave_requests.models import LeaveRequest
+from .models import Employee
 
 EMPLOYEES_PER_PAGE = 10
 
@@ -29,22 +26,19 @@ def employee_list(request: HttpRequest) -> HttpResponse:
                 'Номер страницы должен быть положительным целым числом.'
             )
 
-    total_employees = count_employees()
-    page_count = max(
-        1,
-        (total_employees + EMPLOYEES_PER_PAGE - 1) // EMPLOYEES_PER_PAGE,
+    paginator = Paginator(
+        Employee.objects.order_by('name', 'pk'),
+        EMPLOYEES_PER_PAGE,
     )
-    if page_number > page_count:
+    if page_number > paginator.num_pages:
         raise Http404('Страница сотрудников не найдена.')
 
+    page_obj = paginator.page(page_number)
     context = {
-        'employees': list_employees(
-            limit=EMPLOYEES_PER_PAGE,
-            offset=(page_number - 1) * EMPLOYEES_PER_PAGE,
-        ),
-        'total_employees': total_employees,
+        'employees': page_obj.object_list,
+        'total_employees': paginator.count,
         'page_number': page_number,
-        'page_count': page_count,
+        'page_count': paginator.num_pages,
         'page_error': page_error,
     }
     return render(request, 'employees/employee_list.html', context)
@@ -55,12 +49,11 @@ def employee_detail(
     employee_id: int,
 ) -> HttpResponse:
     """Показать сотрудника; для неизвестного ID вернуть 404."""
-    employee = find_employee(employee_id)
-    context = {'employee': employee}
+    employee = Employee.objects.filter(pk=employee_id).first()
     return render(
         request,
         'employees/employee_detail.html',
-        context,
+        {'employee': employee},
         status=404 if employee is None else 200,
     )
 
@@ -68,7 +61,7 @@ def employee_detail(
 def available_employees(request: HttpRequest) -> HttpResponse:
     """Find employees without an active leave request on the selected date."""
     selected_date = request.GET.get('date', '').strip()
-    employees = []
+    employees = Employee.objects.none()
     error = ''
 
     if selected_date:
@@ -79,7 +72,17 @@ def available_employees(request: HttpRequest) -> HttpResponse:
         except ValueError:
             error = 'Укажите корректную дату в формате ГГГГ-ММ-ДД.'
         else:
-            employees = find_available_employees(parsed_date)
+            booked_employee_ids = LeaveRequest.objects.filter(
+                status__in=(
+                    LeaveRequest.Status.PENDING,
+                    LeaveRequest.Status.APPROVED,
+                ),
+                start_date__lte=parsed_date,
+                end_date__gte=parsed_date,
+            ).values_list('employee_id', flat=True)
+            employees = Employee.objects.exclude(
+                pk__in=booked_employee_ids,
+            ).order_by('name', 'pk')
 
     context = {
         'employees': employees,
