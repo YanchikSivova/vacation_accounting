@@ -18,7 +18,7 @@
                 <p class="card-text">
                     Сотрудник:
                     <a
-                        href="{% url 'employees:detail' vacation_request.employee_id %}"
+                        href="{{ vacation_request.employee.get_absolute_url }}"
                     >
                         {{ vacation_request.employee.name|default:"Без имени" }}
                     </a>

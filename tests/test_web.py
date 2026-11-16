@@ -54,21 +54,17 @@ def project_database(django_database):
             VacationType(id=4, name='По болезни'),
         ],
     )
-    Employee.objects.bulk_create(
-        [
-            Employee(
-                id=1,
-                name='Сивова Яна',
-                vacation_days_available=28,
-                vacation_days_total=28,
-            ),
-            Employee(
-                id=2,
-                name='Машуня',
-                vacation_days_available=20,
-                vacation_days_total=28,
-            ),
-        ],
+    Employee.objects.create(
+        id=1,
+        name='Сивова Яна',
+        vacation_days_available=28,
+        vacation_days_total=28,
+    )
+    Employee.objects.create(
+        id=2,
+        name='Машуня',
+        vacation_days_available=20,
+        vacation_days_total=28,
     )
     LeaveRequest.objects.bulk_create(
         [
@@ -122,6 +118,7 @@ def test_homepage_has_navigation_and_bootstrap():
     assert b'href="/requests/"' in response.content
     assert b'href="/employees/available/"' in response.content
     assert b'href="/requests/statistics/"' in response.content
+    assert 'Сотрудники (2)'.encode() in response.content
 
 
 def test_employee_pages_display_domain_data():
@@ -135,22 +132,36 @@ def test_employee_pages_display_domain_data():
     assert employee_detail.status_code == 200
     assert 'Доступно оплачиваемых дней:'.encode() in employee_detail.content
     assert 'из 28'.encode() in employee_detail.content
+    assert 'Использовано дней:'.encode() in employee_detail.content
     assert 'Подробнее'.encode() in employee_list.content
+    assert b'/employees/sivova-iana-1/' in employee_list.content
+
+
+def test_employee_slug_generated_balance_and_legacy_url():
+    Employee, _, _ = _models()
+    employee = Employee.objects.get(pk=2)
+
+    assert employee.slug == 'mashunia-2'
+    assert employee.get_absolute_url() == '/employees/mashunia-2/'
+    assert employee.vacation_days_used == 8
+    assert _client().get(employee.get_absolute_url()).status_code == 200
+    assert _client().get('/employees/2/').status_code == 200
+
+    employee.vacation_days_available = 18
+    employee.save(update_fields=['vacation_days_available'])
+    employee.refresh_from_db()
+    assert employee.vacation_days_used == 10
 
 
 def test_employee_list_uses_database_pagination():
     Employee, _, _ = _models()
-    Employee.objects.bulk_create(
-        [
-            Employee(
-                id=employee_id,
-                name=f'A employee {employee_id}',
-                vacation_days_available=28,
-                vacation_days_total=28,
-            )
-            for employee_id in range(3, 12)
-        ],
-    )
+    for employee_id in range(3, 12):
+        Employee.objects.create(
+            id=employee_id,
+            name=f'A employee {employee_id}',
+            vacation_days_available=28,
+            vacation_days_total=28,
+        )
 
     client = _client()
     first_page = client.get('/employees/')
@@ -255,7 +266,49 @@ def test_invalid_search_date_and_statistics_page():
     assert statistics.status_code == 200
     assert 'Всего заявок: 3'.encode() in statistics.content
     assert 'Активных заявок: 2'.encode() in statistics.content
+    assert 'Отменённых заявок: 1'.encode() in statistics.content
+    assert 'Завершённых заявок: 0'.encode() in statistics.content
     assert 'Запрошено оплачиваемых дней:'.encode() in statistics.content
+
+
+def test_leave_request_query_set_statuses_and_overlapping_date():
+    Employee, LeaveRequest, VacationType = _models()
+    employee = Employee.objects.get(pk=1)
+    vacation = VacationType.objects.get(pk=1)
+    completed = LeaveRequest.objects.create(
+        employee=employee,
+        vacation=vacation,
+        start_date=date(2026, 10, 1),
+        end_date=date(2026, 10, 1),
+        duration=1,
+        status=LeaveRequest.Status.COMPLETED,
+    )
+
+    assert set(
+        LeaveRequest.objects.active().values_list('pk', flat=True),
+    ) == {2, 3}
+    assert list(
+        LeaveRequest.objects.cancelled().values_list('pk', flat=True),
+    ) == [1]
+    assert list(
+        LeaveRequest.objects.completed().values_list('pk', flat=True),
+    ) == [completed.pk]
+    completed_list = _client().get('/requests/?status=completed')
+    completed_detail = _client().get(f'/requests/{completed.pk}/')
+    assert 'Заявка №'.encode() + str(completed.pk).encode() in (
+        completed_list.content
+    )
+    assert 'Завершена'.encode() in completed_detail.content
+    assert b'value="completed"' in completed_list.content
+    assert set(
+        LeaveRequest.objects.active().for_date(
+            date(2026, 11, 3),
+        ).values_list('pk', flat=True),
+    ) == {2}
+    available_employees = _client().get(
+        '/employees/available/?date=2026-10-01',
+    )
+    assert 'Сивова Яна'.encode() in available_employees.content
 
 
 def test_request_filters_sorting_and_pagination():
@@ -343,6 +396,72 @@ def test_orm_crud_and_protected_relations():
     vacation_request.delete()
     employee.delete()
     assert not Employee.objects.filter(pk=employee.pk).exists()
+
+
+def test_admin_model_lists_and_read_only_permissions():
+    from django.contrib.auth import get_user_model
+    from django.contrib.auth.models import Permission
+
+    from employees.admin import EmployeeAdmin
+
+    User = get_user_model()
+    permission = Permission.objects.get(
+        content_type__app_label='employees',
+        codename='view_employee',
+    )
+    user = User.objects.create_user(
+        username='read-only',
+        password='test-password',
+        is_staff=True,
+    )
+    user.user_permissions.add(permission)
+
+    client = _client()
+    client.force_login(user)
+    response = client.get('/admin/employees/employee/')
+
+    assert response.status_code == 200
+    assert 'Сивова Яна'.encode() in response.content
+    assert b'name="form-0-vacation_days_available"' not in response.content
+    assert EmployeeAdmin.list_editable == ('vacation_days_available',)
+    assert 'slug' in EmployeeAdmin.readonly_fields
+    assert 'vacation_days_used' in EmployeeAdmin.readonly_fields
+
+
+def test_admin_list_editable_respects_change_permission():
+    from django.contrib.auth import get_user_model
+    from django.contrib.auth.models import Permission
+
+    User = get_user_model()
+    permissions = Permission.objects.filter(
+        content_type__app_label='employees',
+        codename__in=('view_employee', 'change_employee'),
+    )
+    user = User.objects.create_user(
+        username='editor',
+        password='test-password',
+        is_staff=True,
+    )
+    user.user_permissions.add(*permissions)
+
+    client = _client()
+    client.force_login(user)
+    response = client.post(
+        '/admin/employees/employee/',
+        {
+            'form-TOTAL_FORMS': '1',
+            'form-INITIAL_FORMS': '1',
+            'form-MIN_NUM_FORMS': '0',
+            'form-MAX_NUM_FORMS': '1000',
+            'form-0-id': '1',
+            'form-0-vacation_days_available': '27',
+            '_save': 'Сохранить',
+        },
+    )
+
+    assert response.status_code == 302
+    assert _models()[0].objects.get(pk=1).vacation_days_available == 27
+    assert _models()[0].objects.get(pk=1).vacation_days_used == 1
 
 
 def test_sqlite_import_is_repeatable_and_keeps_model_relations(tmp_path):

@@ -57,6 +57,14 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
+INTERNAL_IPS = ['127.0.0.1']
+if DEBUG:
+    INSTALLED_APPS += ['debug_toolbar']
+    MIDDLEWARE.insert(
+        1,
+        'debug_toolbar.middleware.DebugToolbarMiddleware',
+    )
+
 ROOT_URLCONF = 'vacation_project.urls'
 
 TEMPLATES = [
@@ -69,6 +77,7 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'homepage.context_processors.site_context',
             ],
         },
     },

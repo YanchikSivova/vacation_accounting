@@ -21,6 +21,10 @@
                     {{ employee.vacation_days_available }}
                     из {{ employee.vacation_days_total }}
                 </p>
+                <p class="card-text">
+                    Использовано дней:
+                    {{ employee.vacation_days_used }}
+                </p>
             </div>
         </article>
     {% else %}

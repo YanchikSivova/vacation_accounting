@@ -10,7 +10,7 @@
         </p>
         <a
             class="btn btn-outline-primary"
-            href="{% url 'employees:detail' employee.id %}"
+            href="{{ employee.get_absolute_url }}"
         >
             Подробнее
         </a>

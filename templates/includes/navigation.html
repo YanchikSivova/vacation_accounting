@@ -2,7 +2,7 @@
     <div class="navbar-nav">
         <a class="nav-link" href="{% url 'homepage:index' %}">Главная</a>
         <a class="nav-link" href="{% url 'employees:list' %}">
-            Сотрудники
+            Сотрудники ({{ employee_count }})
         </a>
         <a class="nav-link" href="{% url 'employees:available' %}">
             Свободные сотрудники

@@ -1,3 +1,7 @@
+from __future__ import annotations
+
+from datetime import date
+
 from django.db import models
 from django.db.models import F, Q
 
@@ -5,12 +9,42 @@ from employees.models import Employee
 from vacations.models import VacationType
 
 
+class LeaveRequestQuerySet(models.QuerySet):
+    def active(self) -> LeaveRequestQuerySet:
+        return self.filter(
+            status__in=(
+                self.model.Status.PENDING,
+                self.model.Status.APPROVED,
+            ),
+        )
+
+    def cancelled(self) -> LeaveRequestQuerySet:
+        return self.filter(status=self.model.Status.CANCELLED)
+
+    def completed(self) -> LeaveRequestQuerySet:
+        return self.filter(status=self.model.Status.COMPLETED)
+
+    def for_date(self, selected_date: date) -> LeaveRequestQuerySet:
+        return self.filter(
+            start_date__lte=selected_date,
+            end_date__gte=selected_date,
+        )
+
+
+class LeaveRequestManager(
+    models.Manager.from_queryset(LeaveRequestQuerySet),
+):
+    pass
+
+
 class LeaveRequest(models.Model):
     class Status(models.TextChoices):
         PENDING = 'pending', 'Ожидает согласования'
         APPROVED = 'approved', 'Согласована'
         CANCELLED = 'cancelled', 'Отменена'
+        COMPLETED = 'completed', 'Завершена'
 
+    objects = LeaveRequestManager()
     employee = models.ForeignKey(
         Employee,
         on_delete=models.PROTECT,
@@ -25,7 +59,10 @@ class LeaveRequest(models.Model):
     )
     start_date = models.DateField(verbose_name='Дата начала')
     end_date = models.DateField(verbose_name='Дата окончания')
-    duration = models.PositiveIntegerField(verbose_name='Продолжительность')
+    duration = models.PositiveIntegerField(
+        verbose_name='Продолжительность',
+        help_text='Количество календарных дней отпуска.',
+    )
     status = models.CharField(
         max_length=16,
         choices=Status.choices,
@@ -49,7 +86,12 @@ class LeaveRequest(models.Model):
             ),
             models.CheckConstraint(
                 condition=Q(
-                    status__in=('pending', 'approved', 'cancelled'),
+                    status__in=(
+                        'pending',
+                        'approved',
+                        'cancelled',
+                        'completed',
+                    ),
                 ),
                 name='leave_request_status_valid',
             ),

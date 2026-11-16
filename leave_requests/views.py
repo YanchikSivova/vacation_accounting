@@ -37,7 +37,7 @@ def _request_list_context(
     selected_sort = request.GET.get('sort', 'date').strip()
 
     if active_only:
-        requests = requests.filter(status__in=ACTIVE_STATUSES)
+        requests = requests.active()
         selected_status = ''
     elif selected_status:
         if selected_status not in LeaveRequest.Status.values:
@@ -88,6 +88,7 @@ def _request_list_context(
         'selected_date': selected_date,
         'selected_employee': selected_employee,
         'selected_vacation': selected_vacation,
+        'status_choices': LeaveRequest.Status.choices,
         'selected_sort': selected_sort,
         'employees': Employee.objects.order_by('name', 'pk'),
         'vacations': VacationType.objects.order_by('pk'),
@@ -138,6 +139,14 @@ def request_statistics(request: HttpRequest) -> HttpResponse:
     summary = LeaveRequest.objects.aggregate(
         total_requests=Count('pk'),
         active_requests=Count('pk', filter=Q(status__in=ACTIVE_STATUSES)),
+        cancelled_requests=Count(
+            'pk',
+            filter=Q(status=LeaveRequest.Status.CANCELLED),
+        ),
+        completed_requests=Count(
+            'pk',
+            filter=Q(status=LeaveRequest.Status.COMPLETED),
+        ),
     )
     by_employee = Employee.objects.annotate(
         employee_name=F('name'),

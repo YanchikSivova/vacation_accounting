@@ -58,6 +58,20 @@ def employee_detail(
     )
 
 
+def employee_detail_by_slug(
+    request: HttpRequest,
+    slug: str,
+) -> HttpResponse:
+    """Show an employee by slug while retaining the legacy ID route."""
+    employee = Employee.objects.filter(slug=slug).first()
+    return render(
+        request,
+        'employees/employee_detail.html',
+        {'employee': employee},
+        status=404 if employee is None else 200,
+    )
+
+
 def available_employees(request: HttpRequest) -> HttpResponse:
     """Find employees without an active leave request on the selected date."""
     selected_date = request.GET.get('date', '').strip()
@@ -72,13 +86,8 @@ def available_employees(request: HttpRequest) -> HttpResponse:
         except ValueError:
             error = 'Укажите корректную дату в формате ГГГГ-ММ-ДД.'
         else:
-            booked_employee_ids = LeaveRequest.objects.filter(
-                status__in=(
-                    LeaveRequest.Status.PENDING,
-                    LeaveRequest.Status.APPROVED,
-                ),
-                start_date__lte=parsed_date,
-                end_date__gte=parsed_date,
+            booked_employee_ids = LeaveRequest.objects.active().for_date(
+                parsed_date,
             ).values_list('employee_id', flat=True)
             employees = Employee.objects.exclude(
                 pk__in=booked_employee_ids,

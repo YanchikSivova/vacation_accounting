@@ -2,6 +2,10 @@
     <span class="badge text-bg-secondary request-status request-status-cancelled">
         Отменена
     </span>
+{% elif vacation_request.status == "completed" %}
+    <span class="badge text-bg-info request-status request-status-completed">
+        Завершена
+    </span>
 {% elif vacation_request.status == "approved" %}
     <span class="badge text-bg-success request-status request-status-approved">
         Согласована
